@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
 <title>Учёт расходов</title>
 <style>
   :root {
@@ -15,11 +16,37 @@
     --accent-hover: #1d4ed8;
     --green: #16a34a;
     --green-bg: #ecfdf3;
+    --green-border: #bbf7d0;
     --red: #dc2626;
     --red-bg: #fef2f2;
+    --red-border: #fecaca;
+    --transfer: #7c3aed;
+    --transfer-bg: #f5f3ff;
+    --transfer-border: #ddd6fe;
     --radius: 10px;
   }
-  * { box-sizing: border-box; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --card-bg: #1a1d24;
+      --border: #2a2e37;
+      --text: #e8eaed;
+      --text-muted: #9aa1ac;
+      --accent: #4f8dff;
+      --accent-hover: #6fa2ff;
+      --green: #4ade80;
+      --green-bg: #0f2b1a;
+      --green-border: #1e5631;
+      --red: #f87171;
+      --red-bg: #3a1414;
+      --red-border: #6b1f1f;
+      --transfer: #b09bff;
+      --transfer-bg: #241a42;
+      --transfer-border: #3d2d6e;
+    }
+  }
+  * { box-sizing: border-box; min-width: 0; }
+  html { background: var(--bg); }
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -49,18 +76,21 @@
   .period-nav button {
     background: var(--card-bg);
     border: 1px solid var(--border);
+    color: var(--text);
     border-radius: 8px;
     width: 36px;
     height: 36px;
+    flex: 0 0 36px;
     font-size: 1.1rem;
     cursor: pointer;
-    flex: 0 0 auto;
   }
   .period-nav button:hover { background: var(--bg); }
   .period-label {
     text-align: center;
     font-weight: 600;
     flex: 1;
+    min-width: 0;
+    word-break: break-word;
   }
   .period-label small {
     display: block;
@@ -82,39 +112,46 @@
 
   .summary-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 10px;
   }
   .stat {
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px 12px;
+    min-width: 0;
   }
   .stat .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
-  .stat .value { font-size: 1.15rem; font-weight: 700; }
-  .stat.remaining.positive { background: var(--green-bg); border-color: #bbf7d0; }
+  .stat .value { font-size: 1.1rem; font-weight: 700; word-break: break-word; }
+  .stat.remaining.positive { background: var(--green-bg); border-color: var(--green-border); }
   .stat.remaining.positive .value { color: var(--green); }
-  .stat.remaining.negative { background: var(--red-bg); border-color: #fecaca; }
+  .stat.remaining.negative { background: var(--red-bg); border-color: var(--red-border); }
   .stat.remaining.negative .value { color: var(--red); }
+  .stat.transfer-stat { background: var(--transfer-bg); border-color: var(--transfer-border); }
+  .stat.transfer-stat .value { color: var(--transfer); }
 
   .card h2 { font-size: 1rem; margin: 0 0 12px; }
 
   form.add-form {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 10px;
+    align-items: start;
   }
   form.add-form .full { grid-column: 1 / -1; }
   label { font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
   input, select {
     width: 100%;
+    min-width: 0;
     padding: 9px 10px;
     border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 0.95rem;
-    background: #fff;
+    background: var(--card-bg);
     color: var(--text);
   }
+  input[type="date"] { appearance: none; }
+  ::placeholder { color: var(--text-muted); opacity: 0.8; }
   button.primary {
     grid-column: 1 / -1;
     background: var(--accent);
@@ -128,13 +165,27 @@
   }
   button.primary:hover { background: var(--accent-hover); }
 
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 420px; }
   th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
   th { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
   td.amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   td.amount.neg { color: var(--red); }
   td.amount.pos-refund { color: var(--green); }
+  td.amount.transfer-amount { color: var(--transfer); }
   td.comment { color: var(--text); }
+  .type-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-right: 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .type-badge.expense { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .type-badge.transfer { background: var(--transfer-bg); color: var(--transfer); border: 1px solid var(--transfer-border); }
   td.del { text-align: right; }
   .del button {
     background: none;
@@ -148,12 +199,13 @@
   .del button:hover { color: var(--red); }
   .empty { color: var(--text-muted); text-align: center; padding: 20px 0; font-size: 0.9rem; }
   tfoot td { font-weight: 700; border-bottom: none; border-top: 2px solid var(--border); }
+  tfoot tr.transfer-row td { font-weight: 600; color: var(--transfer); border-top: none; }
 
   details.settings { font-size: 0.85rem; }
   details.settings summary { cursor: pointer; color: var(--text-muted); }
   .settings-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 10px;
     margin-top: 12px;
   }
@@ -166,6 +218,13 @@
   .history td.amount.positive-total { color: var(--green); }
 
   footer { text-align: center; color: var(--text-muted); font-size: 0.75rem; margin-top: 24px; }
+
+  @media (max-width: 420px) {
+    body { padding: 10px; }
+    .card { padding: 12px; }
+    form.add-form { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  }
 </style>
 </head>
 <body>
@@ -191,8 +250,12 @@
         <div class="value" id="statCarryover">—</div>
       </div>
       <div class="stat">
-        <div class="label">Потрачено</div>
+        <div class="label">Расходы</div>
         <div class="value" id="statSpent">—</div>
+      </div>
+      <div class="stat transfer-stat">
+        <div class="label">Переводы (не расход)</div>
+        <div class="value" id="statTransfer">—</div>
       </div>
       <div class="stat remaining" id="statRemainingBox">
         <div class="label">Остаток (перейдёт дальше)</div>
@@ -209,6 +272,13 @@
         <input type="date" id="txDate" required>
       </div>
       <div>
+        <label for="txType">Тип</label>
+        <select id="txType">
+          <option value="expense">Расход</option>
+          <option value="transfer">Трансфер (кэш → счёт)</option>
+        </select>
+      </div>
+      <div>
         <label for="txAmount">Сумма, £</label>
         <input type="number" id="txAmount" step="0.01" placeholder="напр. 25.50" required>
       </div>
@@ -222,26 +292,31 @@
 
   <div class="card">
     <h2>Транзакции этого периода</h2>
+    <div class="table-scroll">
     <table id="txTable">
       <thead>
         <tr><th>Дата</th><th>Комментарий</th><th style="text-align:right">Сумма</th><th></th></tr>
       </thead>
       <tbody id="txBody"></tbody>
       <tfoot>
-        <tr><td colspan="2">Итого потрачено</td><td class="amount" id="txTotal">—</td><td></td></tr>
+        <tr><td colspan="2">Итого расходов</td><td class="amount" id="txTotal">—</td><td></td></tr>
+        <tr class="transfer-row"><td colspan="2">Итого переводов</td><td class="amount" id="txTransferTotal">—</td><td></td></tr>
       </tfoot>
     </table>
+    </div>
     <div class="empty" id="txEmpty" style="display:none">Пока нет транзакций за этот период</div>
   </div>
 
   <div class="card history">
     <h2>Обзор по периодам</h2>
+    <div class="table-scroll">
     <table>
       <thead>
-        <tr><th>Период</th><th style="text-align:right">Потрачено</th><th style="text-align:right">Остаток</th></tr>
+        <tr><th>Период</th><th style="text-align:right">Расходы</th><th style="text-align:right">Переводы</th><th style="text-align:right">Остаток</th></tr>
       </thead>
       <tbody id="historyBody"></tbody>
     </table>
+    </div>
   </div>
 
   <div class="card">
@@ -283,6 +358,8 @@
     if (typeof raw.settings.payday !== "number") raw.settings.payday = 22;
     if (typeof raw.settings.startingCarryover !== "number") raw.settings.startingCarryover = 0;
     if (!Array.isArray(raw.transactions)) raw.transactions = [];
+    // migrate old records without a type -> treat as expense
+    raw.transactions.forEach(t => { if (t.type !== "expense" && t.type !== "transfer") t.type = "expense"; });
     return raw;
   }
 
@@ -350,23 +427,29 @@
     return periodStartForDate(dateStr);
   }
 
-  // Compute spent & carryover for every period up to and including target, in order.
-  function computeAllPeriods() {
-    const keys = allPeriodKeysSorted();
+  // Compute expense total, transfer total & carryover for every period up to
+  // and including target, in chronological order. Only "expense" transactions
+  // count against the budget; "transfer" moves money between cash/account and
+  // does not affect the remaining balance.
+  function computePeriodsFor(keys) {
     let carry = data.settings.startingCarryover;
     const results = {};
     keys.forEach(key => {
       const p = keyToPeriod(key);
-      const spent = data.transactions
-        .filter(t => periodKey(periodStartForDate(t.date)) === key)
-        .reduce((sum, t) => sum + t.amount, 0);
+      const txs = data.transactions.filter(t => periodKey(periodStartForDate(t.date)) === key);
+      const spent = txs.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
+      const transferred = txs.filter(t => t.type === "transfer").reduce((sum, t) => sum + t.amount, 0);
       const budget = data.settings.baseAmount;
       const available = budget + carry;
       const remaining = available - spent;
-      results[key] = { p, spent, carryIn: carry, budget, available, remaining };
+      results[key] = { p, spent, transferred, carryIn: carry, budget, available, remaining };
       carry = remaining;
     });
     return results;
+  }
+
+  function computeAllPeriods() {
+    return computePeriodsFor(allPeriodKeysSorted());
   }
 
   // ---- State ----
@@ -375,26 +458,11 @@
   // ---- Rendering ----
   function render() {
     const key = periodKey(viewPeriod);
-    const all = computeAllPeriods();
-    const info = all[key] || (function () {
-      // viewPeriod has no transactions and might be before/after known range; compute inline
-      const keys = allPeriodKeysSorted().concat([key]).sort();
-      const uniqueKeys = Array.from(new Set(keys));
-      let carry = data.settings.startingCarryover;
-      let result = null;
-      uniqueKeys.forEach(k => {
-        const p = keyToPeriod(k);
-        const spent = data.transactions
-          .filter(t => periodKey(periodStartForDate(t.date)) === k)
-          .reduce((sum, t) => sum + t.amount, 0);
-        const budget = data.settings.baseAmount;
-        const available = budget + carry;
-        const remaining = available - spent;
-        if (k === key) result = { p, spent, carryIn: carry, budget, available, remaining };
-        carry = remaining;
-      });
-      return result;
-    })();
+    // include the currently viewed period even if it has no transactions and
+    // falls outside the known range (e.g. user paged into an empty future/past period)
+    const keys = Array.from(new Set(allPeriodKeysSorted().concat([key]))).sort();
+    const all = computePeriodsFor(keys);
+    const info = all[key];
 
     const bounds = periodBounds(viewPeriod);
     document.getElementById("periodLabel").innerHTML =
@@ -404,6 +472,7 @@
     document.getElementById("statBudget").textContent = fmtMoney(info.budget);
     document.getElementById("statCarryover").textContent = fmtMoney(info.carryIn);
     document.getElementById("statSpent").textContent = fmtMoney(info.spent);
+    document.getElementById("statTransfer").textContent = fmtMoney(info.transferred);
     document.getElementById("statRemaining").textContent = fmtMoney(info.remaining);
     const box = document.getElementById("statRemainingBox");
     box.classList.toggle("positive", info.remaining >= 0);
@@ -425,9 +494,13 @@
       dcell.textContent = t.date.split("-").reverse().join(".");
       const ccell = document.createElement("td");
       ccell.className = "comment";
-      ccell.textContent = t.comment;
+      const badge = document.createElement("span");
+      badge.className = "type-badge " + t.type;
+      badge.textContent = t.type === "transfer" ? "трансфер" : "расход";
+      ccell.appendChild(badge);
+      ccell.appendChild(document.createTextNode(t.comment));
       const acell = document.createElement("td");
-      acell.className = "amount" + (t.amount < 0 ? " pos-refund" : "");
+      acell.className = "amount" + (t.type === "transfer" ? " transfer-amount" : (t.amount < 0 ? " pos-refund" : ""));
       acell.textContent = fmtMoney(t.amount);
       const delCell = document.createElement("td");
       delCell.className = "del";
@@ -445,6 +518,7 @@
     });
 
     document.getElementById("txTotal").textContent = fmtMoney(info.spent);
+    document.getElementById("txTransferTotal").textContent = fmtMoney(info.transferred);
 
     // history overview
     const historyBody = document.getElementById("historyBody");
@@ -460,10 +534,13 @@
       const scell = document.createElement("td");
       scell.className = "amount";
       scell.textContent = fmtMoney(row.spent);
+      const tcell = document.createElement("td");
+      tcell.className = "amount transfer-amount";
+      tcell.textContent = fmtMoney(row.transferred);
       const rcell = document.createElement("td");
       rcell.className = "amount " + (row.remaining >= 0 ? "positive-total" : "negative-total");
       rcell.textContent = fmtMoney(row.remaining);
-      tr.append(pcell, scell, rcell);
+      tr.append(pcell, scell, tcell, rcell);
       tr.addEventListener("click", () => { viewPeriod = row.p; render(); });
       historyBody.appendChild(tr);
     });
@@ -491,6 +568,7 @@
   document.getElementById("addForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const dateEl = document.getElementById("txDate");
+    const typeEl = document.getElementById("txType");
     const amountEl = document.getElementById("txAmount");
     const commentEl = document.getElementById("txComment");
     const amount = parseFloat(amountEl.value);
@@ -498,6 +576,7 @@
     data.transactions.push({
       id: Date.now(),
       date: dateEl.value,
+      type: typeEl.value === "transfer" ? "transfer" : "expense",
       amount: amount,
       comment: commentEl.value.trim()
     });
@@ -507,6 +586,7 @@
     amountEl.value = "";
     commentEl.value = "";
     dateEl.value = todayStr();
+    typeEl.value = "expense";
     render();
   });
 
