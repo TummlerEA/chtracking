@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Учёт расходов</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card-bg: #ffffff;
+    --border: #e2e4e9;
+    --text: #1c1f26;
+    --text-muted: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --green: #16a34a;
+    --green-bg: #ecfdf3;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .period-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .period-nav button {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .period-nav button:hover { background: var(--bg); }
+  .period-label {
+    text-align: center;
+    font-weight: 600;
+    flex: 1;
+  }
+  .period-label small {
+    display: block;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-top: 2px;
+  }
+  .today-btn {
+    display: block;
+    margin: 0 auto 14px;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .stat .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+  .stat .value { font-size: 1.15rem; font-weight: 700; }
+  .stat.remaining.positive { background: var(--green-bg); border-color: #bbf7d0; }
+  .stat.remaining.positive .value { color: var(--green); }
+  .stat.remaining.negative { background: var(--red-bg); border-color: #fecaca; }
+  .stat.remaining.negative .value { color: var(--red); }
+
+  .card h2 { font-size: 1rem; margin: 0 0 12px; }
+
+  form.add-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  form.add-form .full { grid-column: 1 / -1; }
+  label { font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: #fff;
+    color: var(--text);
+  }
+  button.primary {
+    grid-column: 1 / -1;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary:hover { background: var(--accent-hover); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
+  td.amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.amount.neg { color: var(--red); }
+  td.amount.pos-refund { color: var(--green); }
+  td.comment { color: var(--text); }
+  td.del { text-align: right; }
+  .del button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 4px 6px;
+  }
+  .del button:hover { color: var(--red); }
+  .empty { color: var(--text-muted); text-align: center; padding: 20px 0; font-size: 0.9rem; }
+  tfoot td { font-weight: 700; border-bottom: none; border-top: 2px solid var(--border); }
+
+  details.settings { font-size: 0.85rem; }
+  details.settings summary { cursor: pointer; color: var(--text-muted); }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .history { font-size: 0.85rem; }
+  .history table td, .history table th { padding: 6px; }
+  .history .clickable { cursor: pointer; }
+  .history .clickable:hover { background: var(--bg); }
+  .history td.amount.negative-total { color: var(--red); }
+  .history td.amount.positive-total { color: var(--green); }
+
+  footer { text-align: center; color: var(--text-muted); font-size: 0.75rem; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💷 Учёт расходов</h1>
+  <div class="subtitle">Бюджет на период, остаток переносится на следующий месяц</div>
+
+  <div class="card">
+    <div class="period-nav">
+      <button id="prevPeriod" title="Предыдущий период">‹</button>
+      <div class="period-label" id="periodLabel"></div>
+      <button id="nextPeriod" title="Следующий период">›</button>
+    </div>
+    <button class="today-btn" id="gotoCurrent">Перейти к текущему периоду</button>
+
+    <div class="summary-grid">
+      <div class="stat">
+        <div class="label">Бюджет периода</div>
+        <div class="value" id="statBudget">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">Перенос с прошлого периода</div>
+        <div class="value" id="statCarryover">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">Потрачено</div>
+        <div class="value" id="statSpent">—</div>
+      </div>
+      <div class="stat remaining" id="statRemainingBox">
+        <div class="label">Остаток (перейдёт дальше)</div>
+        <div class="value" id="statRemaining">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Добавить транзакцию</h2>
+    <form class="add-form" id="addForm">
+      <div>
+        <label for="txDate">Дата</label>
+        <input type="date" id="txDate" required>
+      </div>
+      <div>
+        <label for="txAmount">Сумма, £</label>
+        <input type="number" id="txAmount" step="0.01" placeholder="напр. 25.50" required>
+      </div>
+      <div class="full">
+        <label for="txComment">Комментарий</label>
+        <input type="text" id="txComment" placeholder="на что ушла сумма" required>
+      </div>
+      <button type="submit" class="primary">Добавить</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Транзакции этого периода</h2>
+    <table id="txTable">
+      <thead>
+        <tr><th>Дата</th><th>Комментарий</th><th style="text-align:right">Сумма</th><th></th></tr>
+      </thead>
+      <tbody id="txBody"></tbody>
+      <tfoot>
+        <tr><td colspan="2">Итого потрачено</td><td class="amount" id="txTotal">—</td><td></td></tr>
+      </tfoot>
+    </table>
+    <div class="empty" id="txEmpty" style="display:none">Пока нет транзакций за этот период</div>
+  </div>
+
+  <div class="card history">
+    <h2>Обзор по периодам</h2>
+    <table>
+      <thead>
+        <tr><th>Период</th><th style="text-align:right">Потрачено</th><th style="text-align:right">Остаток</th></tr>
+      </thead>
+      <tbody id="historyBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <details class="settings">
+      <summary>Настройки</summary>
+      <div class="settings-grid">
+        <div>
+          <label for="setBudget">Базовая сумма в месяц, £</label>
+          <input type="number" id="setBudget" step="1">
+        </div>
+        <div>
+          <label for="setPayday">День поступления средств</label>
+          <input type="number" id="setPayday" min="1" max="28">
+        </div>
+        <div>
+          <label for="setStarting">Начальный остаток (до первого периода), £</label>
+          <input type="number" id="setStarting" step="0.01">
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <footer>Данные хранятся локально в этом браузере (localStorage).</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const STORAGE_KEY = "expense-tracker-data-v1";
+  const MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+
+  function loadData() {
+    let raw;
+    try { raw = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (e) { raw = null; }
+    if (!raw || typeof raw !== "object") raw = {};
+    if (!raw.settings) raw.settings = {};
+    if (typeof raw.settings.baseAmount !== "number") raw.settings.baseAmount = 2600;
+    if (typeof raw.settings.payday !== "number") raw.settings.payday = 22;
+    if (typeof raw.settings.startingCarryover !== "number") raw.settings.startingCarryover = 0;
+    if (!Array.isArray(raw.transactions)) raw.transactions = [];
+    return raw;
+  }
+
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  let data = loadData();
+
+  // ---- Period helpers ----
+  // A period is identified by its start date {y, m} (0-indexed month) which is the
+  // month/year of the payday that opens it. Period runs from payday of (y,m)
+  // through the day before payday of the following month.
+  function periodStartForDate(dateStr) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const payday = data.settings.payday;
+    if (d >= payday) return { y, m: m - 1 }; // JS month is 0-indexed; input month is 1-indexed
+    let py = y, pm = m - 2;
+    if (pm < 0) { pm += 12; py -= 1; }
+    return { y: py, m: pm };
+  }
+
+  function periodKey(p) { return p.y + "-" + String(p.m + 1).padStart(2, "0"); }
+
+  function periodBounds(p) {
+    const payday = data.settings.payday;
+    const start = new Date(p.y, p.m, payday);
+    const end = new Date(p.y, p.m + 1, payday);
+    end.setDate(end.getDate() - 1);
+    return { start, end };
+  }
+
+  function fmtShort(dt) {
+    return dt.getDate() + " " + MONTHS_RU[dt.getMonth()] + " " + dt.getFullYear();
+  }
+
+  function fmtMoney(n) {
+    const sign = n < 0 ? "-" : "";
+    return sign + "£" + Math.abs(n).toFixed(2);
+  }
+
+  function shiftPeriod(p, delta) {
+    let m = p.m + delta, y = p.y;
+    while (m < 0) { m += 12; y -= 1; }
+    while (m > 11) { m -= 12; y += 1; }
+    return { y, m };
+  }
+
+  function allPeriodKeysSorted() {
+    const keys = new Set();
+    data.transactions.forEach(t => keys.add(periodKey(periodStartForDate(t.date))));
+    // ensure current period always present
+    keys.add(periodKey(currentPeriod()));
+    return Array.from(keys).sort();
+  }
+
+  function keyToPeriod(key) {
+    const [y, m] = key.split("-").map(Number);
+    return { y, m: m - 1 };
+  }
+
+  function currentPeriod() {
+    const today = new Date();
+    const dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+    return periodStartForDate(dateStr);
+  }
+
+  // Compute spent & carryover for every period up to and including target, in order.
+  function computeAllPeriods() {
+    const keys = allPeriodKeysSorted();
+    let carry = data.settings.startingCarryover;
+    const results = {};
+    keys.forEach(key => {
+      const p = keyToPeriod(key);
+      const spent = data.transactions
+        .filter(t => periodKey(periodStartForDate(t.date)) === key)
+        .reduce((sum, t) => sum + t.amount, 0);
+      const budget = data.settings.baseAmount;
+      const available = budget + carry;
+      const remaining = available - spent;
+      results[key] = { p, spent, carryIn: carry, budget, available, remaining };
+      carry = remaining;
+    });
+    return results;
+  }
+
+  // ---- State ----
+  let viewPeriod = currentPeriod();
+
+  // ---- Rendering ----
+  function render() {
+    const key = periodKey(viewPeriod);
+    const all = computeAllPeriods();
+    const info = all[key] || (function () {
+      // viewPeriod has no transactions and might be before/after known range; compute inline
+      const keys = allPeriodKeysSorted().concat([key]).sort();
+      const uniqueKeys = Array.from(new Set(keys));
+      let carry = data.settings.startingCarryover;
+      let result = null;
+      uniqueKeys.forEach(k => {
+        const p = keyToPeriod(k);
+        const spent = data.transactions
+          .filter(t => periodKey(periodStartForDate(t.date)) === k)
+          .reduce((sum, t) => sum + t.amount, 0);
+        const budget = data.settings.baseAmount;
+        const available = budget + carry;
+        const remaining = available - spent;
+        if (k === key) result = { p, spent, carryIn: carry, budget, available, remaining };
+        carry = remaining;
+      });
+      return result;
+    })();
+
+    const bounds = periodBounds(viewPeriod);
+    document.getElementById("periodLabel").innerHTML =
+      fmtShort(bounds.start) + " – " + fmtShort(bounds.end) +
+      "<small>период " + key + "</small>";
+
+    document.getElementById("statBudget").textContent = fmtMoney(info.budget);
+    document.getElementById("statCarryover").textContent = fmtMoney(info.carryIn);
+    document.getElementById("statSpent").textContent = fmtMoney(info.spent);
+    document.getElementById("statRemaining").textContent = fmtMoney(info.remaining);
+    const box = document.getElementById("statRemainingBox");
+    box.classList.toggle("positive", info.remaining >= 0);
+    box.classList.toggle("negative", info.remaining < 0);
+
+    // transactions table
+    const rows = data.transactions
+      .filter(t => periodKey(periodStartForDate(t.date)) === key)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+    const tbody = document.getElementById("txBody");
+    tbody.innerHTML = "";
+    document.getElementById("txEmpty").style.display = rows.length ? "none" : "block";
+    document.getElementById("txTable").style.display = rows.length ? "table" : "none";
+
+    rows.forEach(t => {
+      const tr = document.createElement("tr");
+      const dcell = document.createElement("td");
+      dcell.textContent = t.date.split("-").reverse().join(".");
+      const ccell = document.createElement("td");
+      ccell.className = "comment";
+      ccell.textContent = t.comment;
+      const acell = document.createElement("td");
+      acell.className = "amount" + (t.amount < 0 ? " pos-refund" : "");
+      acell.textContent = fmtMoney(t.amount);
+      const delCell = document.createElement("td");
+      delCell.className = "del";
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "✕";
+      delBtn.title = "Удалить";
+      delBtn.addEventListener("click", () => {
+        data.transactions = data.transactions.filter(x => x.id !== t.id);
+        saveData();
+        render();
+      });
+      delCell.appendChild(delBtn);
+      tr.append(dcell, ccell, acell, delCell);
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("txTotal").textContent = fmtMoney(info.spent);
+
+    // history overview
+    const historyBody = document.getElementById("historyBody");
+    historyBody.innerHTML = "";
+    const allComputed = computeAllPeriods();
+    Object.keys(allComputed).sort().reverse().forEach(k => {
+      const row = allComputed[k];
+      const tr = document.createElement("tr");
+      tr.className = "clickable";
+      const b = periodBounds(row.p);
+      const pcell = document.createElement("td");
+      pcell.textContent = fmtShort(b.start) + " – " + fmtShort(b.end);
+      const scell = document.createElement("td");
+      scell.className = "amount";
+      scell.textContent = fmtMoney(row.spent);
+      const rcell = document.createElement("td");
+      rcell.className = "amount " + (row.remaining >= 0 ? "positive-total" : "negative-total");
+      rcell.textContent = fmtMoney(row.remaining);
+      tr.append(pcell, scell, rcell);
+      tr.addEventListener("click", () => { viewPeriod = row.p; render(); });
+      historyBody.appendChild(tr);
+    });
+
+    // settings fields
+    document.getElementById("setBudget").value = data.settings.baseAmount;
+    document.getElementById("setPayday").value = data.settings.payday;
+    document.getElementById("setStarting").value = data.settings.startingCarryover;
+  }
+
+  // ---- Events ----
+  document.getElementById("prevPeriod").addEventListener("click", () => {
+    viewPeriod = shiftPeriod(viewPeriod, -1);
+    render();
+  });
+  document.getElementById("nextPeriod").addEventListener("click", () => {
+    viewPeriod = shiftPeriod(viewPeriod, 1);
+    render();
+  });
+  document.getElementById("gotoCurrent").addEventListener("click", () => {
+    viewPeriod = currentPeriod();
+    render();
+  });
+
+  document.getElementById("addForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const dateEl = document.getElementById("txDate");
+    const amountEl = document.getElementById("txAmount");
+    const commentEl = document.getElementById("txComment");
+    const amount = parseFloat(amountEl.value);
+    if (!dateEl.value || isNaN(amount) || !commentEl.value.trim()) return;
+    data.transactions.push({
+      id: Date.now(),
+      date: dateEl.value,
+      amount: amount,
+      comment: commentEl.value.trim()
+    });
+    saveData();
+    // jump to the period the new transaction belongs to
+    viewPeriod = periodStartForDate(dateEl.value);
+    amountEl.value = "";
+    commentEl.value = "";
+    dateEl.value = todayStr();
+    render();
+  });
+
+  function todayStr() {
+    const t = new Date();
+    return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+  }
+
+  ["setBudget", "setPayday", "setStarting"].forEach(id => {
+    document.getElementById(id).addEventListener("change", (e) => {
+      const val = parseFloat(e.target.value);
+      if (isNaN(val)) return;
+      if (id === "setBudget") data.settings.baseAmount = val;
+      if (id === "setPayday") data.settings.payday = Math.min(28, Math.max(1, Math.round(val)));
+      if (id === "setStarting") data.settings.startingCarryover = val;
+      saveData();
+      render();
+    });
+  });
+
+  document.getElementById("txDate").value = todayStr();
+
+  render();
+})();
+</script>
+</body>
+</html>
