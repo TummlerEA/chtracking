@@ -186,8 +186,8 @@
   }
   .type-badge.expense { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
   .type-badge.transfer { background: var(--transfer-bg); color: var(--transfer); border: 1px solid var(--transfer-border); }
-  td.del { text-align: right; }
-  .del button {
+  .row-actions { display: flex; gap: 2px; justify-content: flex-end; }
+  .row-actions button {
     background: none;
     border: none;
     color: var(--text-muted);
@@ -196,7 +196,12 @@
     line-height: 1;
     padding: 4px 6px;
   }
-  .del button:hover { color: var(--red); }
+  .row-actions button:hover { color: var(--accent); }
+  .row-actions button.del-btn:hover { color: var(--red); }
+  .row-actions button.save-btn:hover { color: var(--green); }
+  .edit-cell { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
+  .edit-cell input, .edit-cell select { padding: 6px 8px; font-size: 0.85rem; }
+  tr.editing td { background: var(--bg); vertical-align: top; padding-top: 10px; padding-bottom: 10px; }
   .empty { color: var(--text-muted); text-align: center; padding: 20px 0; font-size: 0.9rem; }
   tfoot td { font-weight: 700; border-bottom: none; border-top: 2px solid var(--border); }
   tfoot tr.transfer-row td { font-weight: 600; color: var(--transfer); border-top: none; }
@@ -218,6 +223,7 @@
   .history td.amount.positive-total { color: var(--green); }
 
   footer { text-align: center; color: var(--text-muted); font-size: 0.75rem; margin-top: 24px; }
+  footer .version { margin-top: 4px; opacity: 0.7; }
 
   @media (max-width: 420px) {
     body { padding: 10px; }
@@ -339,13 +345,17 @@
     </details>
   </div>
 
-  <footer>Данные хранятся локально в этом браузере (localStorage).</footer>
+  <footer>
+    <div>Данные хранятся локально в этом браузере (localStorage).</div>
+    <div class="version" id="appVersion"></div>
+  </footer>
 </div>
 
 <script>
 (function () {
   "use strict";
 
+  const APP_VERSION = "1.3.0";
   const STORAGE_KEY = "expense-tracker-data-v1";
   const MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
 
@@ -454,6 +464,7 @@
 
   // ---- State ----
   let viewPeriod = currentPeriod();
+  let editingId = null;
 
   // ---- Rendering ----
   function render() {
@@ -490,30 +501,106 @@
 
     rows.forEach(t => {
       const tr = document.createElement("tr");
-      const dcell = document.createElement("td");
-      dcell.textContent = t.date.split("-").reverse().join(".");
-      const ccell = document.createElement("td");
-      ccell.className = "comment";
-      const badge = document.createElement("span");
-      badge.className = "type-badge " + t.type;
-      badge.textContent = t.type === "transfer" ? "трансфер" : "расход";
-      ccell.appendChild(badge);
-      ccell.appendChild(document.createTextNode(t.comment));
-      const acell = document.createElement("td");
-      acell.className = "amount" + (t.type === "transfer" ? " transfer-amount" : (t.amount < 0 ? " pos-refund" : ""));
-      acell.textContent = fmtMoney(t.amount);
-      const delCell = document.createElement("td");
-      delCell.className = "del";
-      const delBtn = document.createElement("button");
-      delBtn.textContent = "✕";
-      delBtn.title = "Удалить";
-      delBtn.addEventListener("click", () => {
-        data.transactions = data.transactions.filter(x => x.id !== t.id);
-        saveData();
-        render();
-      });
-      delCell.appendChild(delBtn);
-      tr.append(dcell, ccell, acell, delCell);
+
+      if (t.id === editingId) {
+        tr.className = "editing";
+
+        const dcell = document.createElement("td");
+        const editWrap = document.createElement("div");
+        editWrap.className = "edit-cell";
+        const dateInput = document.createElement("input");
+        dateInput.type = "date";
+        dateInput.value = t.date;
+        const typeSelect = document.createElement("select");
+        [["expense", "Расход"], ["transfer", "Трансфер"]].forEach(([val, label]) => {
+          const opt = document.createElement("option");
+          opt.value = val; opt.textContent = label;
+          if (t.type === val) opt.selected = true;
+          typeSelect.appendChild(opt);
+        });
+        editWrap.append(dateInput, typeSelect);
+        dcell.appendChild(editWrap);
+
+        const ccell = document.createElement("td");
+        const commentInput = document.createElement("input");
+        commentInput.type = "text";
+        commentInput.value = t.comment;
+        ccell.appendChild(commentInput);
+
+        const acell = document.createElement("td");
+        const amountInput = document.createElement("input");
+        amountInput.type = "number";
+        amountInput.step = "0.01";
+        amountInput.value = t.amount;
+        acell.appendChild(amountInput);
+
+        const actionCell = document.createElement("td");
+        const actions = document.createElement("div");
+        actions.className = "row-actions";
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "save-btn";
+        saveBtn.textContent = "✓";
+        saveBtn.title = "Сохранить";
+        saveBtn.type = "button";
+        saveBtn.addEventListener("click", () => {
+          const newAmount = parseFloat(amountInput.value);
+          if (!dateInput.value || isNaN(newAmount) || !commentInput.value.trim()) return;
+          t.date = dateInput.value;
+          t.type = typeSelect.value === "transfer" ? "transfer" : "expense";
+          t.amount = newAmount;
+          t.comment = commentInput.value.trim();
+          editingId = null;
+          saveData();
+          viewPeriod = periodStartForDate(t.date);
+          render();
+        });
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "✕";
+        cancelBtn.title = "Отмена";
+        cancelBtn.type = "button";
+        cancelBtn.addEventListener("click", () => { editingId = null; render(); });
+        actions.append(saveBtn, cancelBtn);
+        actionCell.appendChild(actions);
+
+        tr.append(dcell, ccell, acell, actionCell);
+      } else {
+        const dcell = document.createElement("td");
+        dcell.textContent = t.date.split("-").reverse().join(".");
+        const ccell = document.createElement("td");
+        ccell.className = "comment";
+        const badge = document.createElement("span");
+        badge.className = "type-badge " + t.type;
+        badge.textContent = t.type === "transfer" ? "трансфер" : "расход";
+        ccell.appendChild(badge);
+        ccell.appendChild(document.createTextNode(t.comment));
+        const acell = document.createElement("td");
+        acell.className = "amount" + (t.type === "transfer" ? " transfer-amount" : (t.amount < 0 ? " pos-refund" : ""));
+        acell.textContent = fmtMoney(t.amount);
+
+        const actionCell = document.createElement("td");
+        const actions = document.createElement("div");
+        actions.className = "row-actions";
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "✎";
+        editBtn.title = "Изменить";
+        editBtn.type = "button";
+        editBtn.addEventListener("click", () => { editingId = t.id; render(); });
+        const delBtn = document.createElement("button");
+        delBtn.className = "del-btn";
+        delBtn.textContent = "✕";
+        delBtn.title = "Удалить";
+        delBtn.type = "button";
+        delBtn.addEventListener("click", () => {
+          data.transactions = data.transactions.filter(x => x.id !== t.id);
+          saveData();
+          render();
+        });
+        actions.append(editBtn, delBtn);
+        actionCell.appendChild(actions);
+
+        tr.append(dcell, ccell, acell, actionCell);
+      }
+
       tbody.appendChild(tr);
     });
 
@@ -608,6 +695,7 @@
   });
 
   document.getElementById("txDate").value = todayStr();
+  document.getElementById("appVersion").textContent = "chtracking v" + APP_VERSION;
 
   render();
 })();
