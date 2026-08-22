@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>Учёт расходов</title>
+<title>Expense Tracker</title>
 <style>
   :root {
     --bg: #f4f5f7;
@@ -52,35 +52,35 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
-    padding: 16px;
+    padding: 12px;
   }
-  .wrap { max-width: 760px; margin: 0 auto; }
-  h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .subtitle { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; }
 
   .card {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 16px;
+    padding: 14px;
+    margin-bottom: 12px;
   }
 
   .period-nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 6px;
+    margin-bottom: 12px;
   }
   .period-nav button {
     background: var(--card-bg);
     border: 1px solid var(--border);
     color: var(--text);
     border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
     font-size: 1.1rem;
     cursor: pointer;
   }
@@ -88,6 +88,7 @@
   .period-label {
     text-align: center;
     font-weight: 600;
+    font-size: 0.9rem;
     flex: 1;
     min-width: 0;
     word-break: break-word;
@@ -96,33 +97,33 @@
     display: block;
     font-weight: 400;
     color: var(--text-muted);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     margin-top: 2px;
   }
   .today-btn {
     display: block;
-    margin: 0 auto 14px;
+    margin: 0 auto 12px;
     background: none;
     border: none;
     color: var(--accent);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     cursor: pointer;
     text-decoration: underline;
   }
 
   .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
   .stat {
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     min-width: 0;
   }
-  .stat .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
-  .stat .value { font-size: 1.1rem; font-weight: 700; word-break: break-word; }
+  .stat .label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 3px; }
+  .stat .value { font-size: 1rem; font-weight: 700; word-break: break-word; }
   .stat.remaining.positive { background: var(--green-bg); border-color: var(--green-border); }
   .stat.remaining.positive .value { color: var(--green); }
   .stat.remaining.negative { background: var(--red-bg); border-color: var(--red-border); }
@@ -130,23 +131,23 @@
   .stat.transfer-stat { background: var(--transfer-bg); border-color: var(--transfer-border); }
   .stat.transfer-stat .value { color: var(--transfer); }
 
-  .card h2 { font-size: 1rem; margin: 0 0 12px; }
+  .card h2 { font-size: 0.95rem; margin: 0 0 10px; }
 
   form.add-form {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 10px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
     align-items: start;
   }
   form.add-form .full { grid-column: 1 / -1; }
-  label { font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
+  label { font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
   input, select {
     width: 100%;
     min-width: 0;
-    padding: 9px 10px;
+    padding: 8px 9px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     background: var(--card-bg);
     color: var(--text);
   }
@@ -158,187 +159,195 @@
     color: #fff;
     border: none;
     border-radius: 8px;
-    padding: 11px;
-    font-size: 0.95rem;
+    padding: 10px;
+    font-size: 0.92rem;
     font-weight: 600;
     cursor: pointer;
   }
   button.primary:hover { background: var(--accent-hover); }
 
-  .table-scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 420px; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
-  th { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
-  td.amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  td.amount.neg { color: var(--red); }
-  td.amount.pos-refund { color: var(--green); }
-  td.amount.transfer-amount { color: var(--transfer); }
-  td.comment { color: var(--text); }
-  .type-badge {
-    display: inline-block;
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 999px;
-    margin-right: 6px;
-    vertical-align: middle;
-    white-space: nowrap;
+  /* ---- transaction list (flex rows, never needs horizontal scroll) ---- */
+  .tx-list { display: flex; flex-direction: column; }
+  .tx-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
   }
-  .type-badge.expense { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
-  .type-badge.transfer { background: var(--transfer-bg); color: var(--transfer); border: 1px solid var(--transfer-border); }
-  .row-actions { display: flex; gap: 2px; justify-content: flex-end; }
-  .row-actions button {
+  .tx-row:last-child { border-bottom: none; }
+  .tx-main { flex: 1; min-width: 0; }
+  .tx-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tx-comment { overflow-wrap: anywhere; font-size: 0.92rem; }
+  .tx-date { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+  .tx-right { flex: 0 0 auto; text-align: right; }
+  .tx-amount { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 0.92rem; }
+  .tx-amount.pos-refund { color: var(--green); }
+  .tx-amount.transfer-amount { color: var(--transfer); }
+  .tx-actions { display: flex; gap: 2px; justify-content: flex-end; margin-top: 4px; }
+  .tx-actions button {
     background: none;
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.95rem;
     line-height: 1;
-    padding: 4px 6px;
+    padding: 3px 5px;
   }
-  .row-actions button:hover { color: var(--accent); }
-  .row-actions button.del-btn:hover { color: var(--red); }
-  .row-actions button.save-btn:hover { color: var(--green); }
-  .edit-cell { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
-  .edit-cell input, .edit-cell select { padding: 6px 8px; font-size: 0.85rem; }
-  tr.editing td { background: var(--bg); vertical-align: top; padding-top: 10px; padding-bottom: 10px; }
-  .empty { color: var(--text-muted); text-align: center; padding: 20px 0; font-size: 0.9rem; }
-  tfoot td { font-weight: 700; border-bottom: none; border-top: 2px solid var(--border); }
-  tfoot tr.transfer-row td { font-weight: 600; color: var(--transfer); border-top: none; }
+  .tx-actions button:hover { color: var(--accent); }
+  .tx-actions button.del-btn:hover { color: var(--red); }
+  .tx-actions button.save-btn:hover { color: var(--green); }
+
+  .type-badge {
+    display: inline-block;
+    font-size: 0.66rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .type-badge.expense { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .type-badge.transfer { background: var(--transfer-bg); color: var(--transfer); border: 1px solid var(--transfer-border); }
+
+  .tx-row.editing { flex-direction: column; align-items: stretch; }
+  .edit-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+  .edit-fields input, .edit-fields select { font-size: 0.88rem; padding: 7px 8px; }
+  .edit-fields .full { grid-column: 1 / -1; }
+  .tx-row.editing .tx-actions { margin-top: 8px; justify-content: flex-end; }
+  .tx-row.editing .tx-actions button { font-size: 0.85rem; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; }
+
+  .totals { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 2px solid var(--border); font-size: 0.85rem; }
+  .totals .totals-row { display: flex; justify-content: space-between; }
+  .totals .totals-row.transfer-row { color: var(--transfer); }
+  .totals .totals-row .label { color: inherit; font-weight: 600; }
+  .totals .totals-row .value { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .empty { color: var(--text-muted); text-align: center; padding: 16px 0; font-size: 0.88rem; }
 
   details.settings { font-size: 0.85rem; }
   details.settings summary { cursor: pointer; color: var(--text-muted); }
   .settings-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: 1fr;
     gap: 10px;
     margin-top: 12px;
   }
 
-  .history { font-size: 0.85rem; }
-  .history table td, .history table th { padding: 6px; }
-  .history .clickable { cursor: pointer; }
-  .history .clickable:hover { background: var(--bg); }
-  .history td.amount.negative-total { color: var(--red); }
-  .history td.amount.positive-total { color: var(--green); }
-
-  footer { text-align: center; color: var(--text-muted); font-size: 0.75rem; margin-top: 24px; }
-  footer .version { margin-top: 4px; opacity: 0.7; }
-
-  @media (max-width: 420px) {
-    body { padding: 10px; }
-    .card { padding: 12px; }
-    form.add-form { grid-template-columns: 1fr; }
-    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  /* ---- period overview (flex rows) ---- */
+  .history-list { display: flex; flex-direction: column; }
+  .hist-row {
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
   }
+  .hist-row:last-child { border-bottom: none; }
+  .hist-row:hover { background: var(--bg); }
+  .hist-period { font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; }
+  .hist-figures { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 0.78rem; }
+  .hist-figures .figure { white-space: nowrap; }
+  .hist-figures .figure .fig-label { color: var(--text-muted); }
+  .hist-figures .figure.spent .fig-value { color: var(--text); font-weight: 600; }
+  .hist-figures .figure.transfer .fig-value { color: var(--transfer); font-weight: 600; }
+  .hist-figures .figure.balance.positive .fig-value { color: var(--green); font-weight: 700; }
+  .hist-figures .figure.balance.negative .fig-value { color: var(--red); font-weight: 700; }
+
+  footer { text-align: center; color: var(--text-muted); font-size: 0.72rem; margin-top: 20px; }
+  footer .version { margin-top: 4px; opacity: 0.7; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>💷 Учёт расходов</h1>
-  <div class="subtitle">Бюджет на период, остаток переносится на следующий месяц</div>
+  <h1>💷 Expense Tracker</h1>
+  <div class="subtitle">Budget per period, balance rolls over to the next month</div>
 
   <div class="card">
     <div class="period-nav">
-      <button id="prevPeriod" title="Предыдущий период">‹</button>
+      <button id="prevPeriod" title="Previous period">‹</button>
       <div class="period-label" id="periodLabel"></div>
-      <button id="nextPeriod" title="Следующий период">›</button>
+      <button id="nextPeriod" title="Next period">›</button>
     </div>
-    <button class="today-btn" id="gotoCurrent">Перейти к текущему периоду</button>
+    <button class="today-btn" id="gotoCurrent">Jump to current period</button>
 
     <div class="summary-grid">
       <div class="stat">
-        <div class="label">Бюджет периода</div>
+        <div class="label">Period budget</div>
         <div class="value" id="statBudget">—</div>
       </div>
       <div class="stat">
-        <div class="label">Перенос с прошлого периода</div>
+        <div class="label">Carried over</div>
         <div class="value" id="statCarryover">—</div>
       </div>
       <div class="stat">
-        <div class="label">Расходы</div>
+        <div class="label">Spent</div>
         <div class="value" id="statSpent">—</div>
       </div>
       <div class="stat transfer-stat">
-        <div class="label">Переводы (не расход)</div>
+        <div class="label">Transfers (not spending)</div>
         <div class="value" id="statTransfer">—</div>
       </div>
-      <div class="stat remaining" id="statRemainingBox">
-        <div class="label">Остаток (перейдёт дальше)</div>
+      <div class="stat remaining" id="statRemainingBox" style="grid-column: 1 / -1;">
+        <div class="label">Remaining (rolls over)</div>
         <div class="value" id="statRemaining">—</div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Добавить транзакцию</h2>
+    <h2>Add transaction</h2>
     <form class="add-form" id="addForm">
       <div>
-        <label for="txDate">Дата</label>
+        <label for="txDate">Date</label>
         <input type="date" id="txDate" required>
       </div>
       <div>
-        <label for="txType">Тип</label>
+        <label for="txType">Type</label>
         <select id="txType">
-          <option value="expense">Расход</option>
-          <option value="transfer">Трансфер (кэш → счёт)</option>
+          <option value="expense">Expense</option>
+          <option value="transfer">Transfer (cash → account)</option>
         </select>
       </div>
-      <div>
-        <label for="txAmount">Сумма, £</label>
-        <input type="number" id="txAmount" step="0.01" placeholder="напр. 25.50" required>
+      <div class="full">
+        <label for="txAmount">Amount, £</label>
+        <input type="number" id="txAmount" step="0.01" placeholder="e.g. 25.50" required>
       </div>
       <div class="full">
-        <label for="txComment">Комментарий</label>
-        <input type="text" id="txComment" placeholder="на что ушла сумма" required>
+        <label for="txComment">Comment</label>
+        <input type="text" id="txComment" placeholder="what it was for" required>
       </div>
-      <button type="submit" class="primary">Добавить</button>
+      <button type="submit" class="primary">Add</button>
     </form>
   </div>
 
   <div class="card">
-    <h2>Транзакции этого периода</h2>
-    <div class="table-scroll">
-    <table id="txTable">
-      <thead>
-        <tr><th>Дата</th><th>Комментарий</th><th style="text-align:right">Сумма</th><th></th></tr>
-      </thead>
-      <tbody id="txBody"></tbody>
-      <tfoot>
-        <tr><td colspan="2">Итого расходов</td><td class="amount" id="txTotal">—</td><td></td></tr>
-        <tr class="transfer-row"><td colspan="2">Итого переводов</td><td class="amount" id="txTransferTotal">—</td><td></td></tr>
-      </tfoot>
-    </table>
-    </div>
-    <div class="empty" id="txEmpty" style="display:none">Пока нет транзакций за этот период</div>
-  </div>
-
-  <div class="card history">
-    <h2>Обзор по периодам</h2>
-    <div class="table-scroll">
-    <table>
-      <thead>
-        <tr><th>Период</th><th style="text-align:right">Расходы</th><th style="text-align:right">Переводы</th><th style="text-align:right">Остаток</th></tr>
-      </thead>
-      <tbody id="historyBody"></tbody>
-    </table>
+    <h2>Transactions this period</h2>
+    <div class="tx-list" id="txList"></div>
+    <div class="empty" id="txEmpty" style="display:none">No transactions in this period yet</div>
+    <div class="totals" id="txTotals" style="display:none">
+      <div class="totals-row"><span class="label">Total spent</span><span class="value" id="txTotal">—</span></div>
+      <div class="totals-row transfer-row"><span class="label">Total transfers</span><span class="value" id="txTransferTotal">—</span></div>
     </div>
   </div>
 
   <div class="card">
+    <h2>Period overview</h2>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <div class="card">
     <details class="settings">
-      <summary>Настройки</summary>
+      <summary>Settings</summary>
       <div class="settings-grid">
         <div>
-          <label for="setBudget">Базовая сумма в месяц, £</label>
+          <label for="setBudget">Monthly budget, £</label>
           <input type="number" id="setBudget" step="1">
         </div>
         <div>
-          <label for="setPayday">День поступления средств</label>
+          <label for="setPayday">Payday (day of month)</label>
           <input type="number" id="setPayday" min="1" max="28">
         </div>
         <div>
-          <label for="setStarting">Начальный остаток (до первого периода), £</label>
+          <label for="setStarting">Starting balance (before first period), £</label>
           <input type="number" id="setStarting" step="0.01">
         </div>
       </div>
@@ -346,7 +355,7 @@
   </div>
 
   <footer>
-    <div>Данные хранятся локально в этом браузере (localStorage).</div>
+    <div>Data is stored locally in this browser (localStorage).</div>
     <div class="version" id="appVersion"></div>
   </footer>
 </div>
@@ -355,9 +364,9 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "1.3.0";
+  const APP_VERSION = "1.4.0";
   const STORAGE_KEY = "expense-tracker-data-v1";
-  const MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+  const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   function loadData() {
     let raw;
@@ -403,7 +412,11 @@
   }
 
   function fmtShort(dt) {
-    return dt.getDate() + " " + MONTHS_RU[dt.getMonth()] + " " + dt.getFullYear();
+    return dt.getDate() + " " + MONTHS_EN[dt.getMonth()] + " " + dt.getFullYear();
+  }
+
+  function fmtMonthYear(dt) {
+    return MONTHS_EN[dt.getMonth()] + " " + dt.getFullYear();
   }
 
   function fmtMoney(n) {
@@ -478,7 +491,7 @@
     const bounds = periodBounds(viewPeriod);
     document.getElementById("periodLabel").innerHTML =
       fmtShort(bounds.start) + " – " + fmtShort(bounds.end) +
-      "<small>период " + key + "</small>";
+      "<small>period " + key + "</small>";
 
     document.getElementById("statBudget").textContent = fmtMoney(info.budget);
     document.getElementById("statCarryover").textContent = fmtMoney(info.carryIn);
@@ -489,58 +502,56 @@
     box.classList.toggle("positive", info.remaining >= 0);
     box.classList.toggle("negative", info.remaining < 0);
 
-    // transactions table
+    // transaction list
     const rows = data.transactions
       .filter(t => periodKey(periodStartForDate(t.date)) === key)
       .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
 
-    const tbody = document.getElementById("txBody");
-    tbody.innerHTML = "";
+    const list = document.getElementById("txList");
+    list.innerHTML = "";
     document.getElementById("txEmpty").style.display = rows.length ? "none" : "block";
-    document.getElementById("txTable").style.display = rows.length ? "table" : "none";
+    document.getElementById("txTotals").style.display = rows.length ? "flex" : "none";
 
     rows.forEach(t => {
-      const tr = document.createElement("tr");
+      const row = document.createElement("div");
+      row.className = "tx-row";
 
       if (t.id === editingId) {
-        tr.className = "editing";
+        row.classList.add("editing");
 
-        const dcell = document.createElement("td");
-        const editWrap = document.createElement("div");
-        editWrap.className = "edit-cell";
+        const fields = document.createElement("div");
+        fields.className = "edit-fields";
+
         const dateInput = document.createElement("input");
         dateInput.type = "date";
         dateInput.value = t.date;
+
         const typeSelect = document.createElement("select");
-        [["expense", "Расход"], ["transfer", "Трансфер"]].forEach(([val, label]) => {
+        [["expense", "Expense"], ["transfer", "Transfer"]].forEach(([val, label]) => {
           const opt = document.createElement("option");
           opt.value = val; opt.textContent = label;
           if (t.type === val) opt.selected = true;
           typeSelect.appendChild(opt);
         });
-        editWrap.append(dateInput, typeSelect);
-        dcell.appendChild(editWrap);
 
-        const ccell = document.createElement("td");
-        const commentInput = document.createElement("input");
-        commentInput.type = "text";
-        commentInput.value = t.comment;
-        ccell.appendChild(commentInput);
-
-        const acell = document.createElement("td");
         const amountInput = document.createElement("input");
         amountInput.type = "number";
         amountInput.step = "0.01";
         amountInput.value = t.amount;
-        acell.appendChild(amountInput);
 
-        const actionCell = document.createElement("td");
+        const commentInput = document.createElement("input");
+        commentInput.type = "text";
+        commentInput.className = "full";
+        commentInput.value = t.comment;
+
+        fields.append(dateInput, typeSelect, amountInput, commentInput);
+        row.appendChild(fields);
+
         const actions = document.createElement("div");
-        actions.className = "row-actions";
+        actions.className = "tx-actions";
         const saveBtn = document.createElement("button");
         saveBtn.className = "save-btn";
-        saveBtn.textContent = "✓";
-        saveBtn.title = "Сохранить";
+        saveBtn.textContent = "✓ Save";
         saveBtn.type = "button";
         saveBtn.addEventListener("click", () => {
           const newAmount = parseFloat(amountInput.value);
@@ -555,40 +566,44 @@
           render();
         });
         const cancelBtn = document.createElement("button");
-        cancelBtn.textContent = "✕";
-        cancelBtn.title = "Отмена";
+        cancelBtn.textContent = "✕ Cancel";
         cancelBtn.type = "button";
         cancelBtn.addEventListener("click", () => { editingId = null; render(); });
         actions.append(saveBtn, cancelBtn);
-        actionCell.appendChild(actions);
-
-        tr.append(dcell, ccell, acell, actionCell);
+        row.appendChild(actions);
       } else {
-        const dcell = document.createElement("td");
-        dcell.textContent = t.date.split("-").reverse().join(".");
-        const ccell = document.createElement("td");
-        ccell.className = "comment";
+        const main = document.createElement("div");
+        main.className = "tx-main";
+        const top = document.createElement("div");
+        top.className = "tx-top";
         const badge = document.createElement("span");
         badge.className = "type-badge " + t.type;
-        badge.textContent = t.type === "transfer" ? "трансфер" : "расход";
-        ccell.appendChild(badge);
-        ccell.appendChild(document.createTextNode(t.comment));
-        const acell = document.createElement("td");
-        acell.className = "amount" + (t.type === "transfer" ? " transfer-amount" : (t.amount < 0 ? " pos-refund" : ""));
-        acell.textContent = fmtMoney(t.amount);
+        badge.textContent = t.type;
+        const comment = document.createElement("span");
+        comment.className = "tx-comment";
+        comment.textContent = t.comment;
+        top.append(badge, comment);
+        const dateEl = document.createElement("div");
+        dateEl.className = "tx-date";
+        dateEl.textContent = t.date.split("-").reverse().join("/");
+        main.append(top, dateEl);
 
-        const actionCell = document.createElement("td");
+        const right = document.createElement("div");
+        right.className = "tx-right";
+        const amountEl = document.createElement("div");
+        amountEl.className = "tx-amount" + (t.type === "transfer" ? " transfer-amount" : (t.amount < 0 ? " pos-refund" : ""));
+        amountEl.textContent = fmtMoney(t.amount);
         const actions = document.createElement("div");
-        actions.className = "row-actions";
+        actions.className = "tx-actions";
         const editBtn = document.createElement("button");
         editBtn.textContent = "✎";
-        editBtn.title = "Изменить";
+        editBtn.title = "Edit";
         editBtn.type = "button";
         editBtn.addEventListener("click", () => { editingId = t.id; render(); });
         const delBtn = document.createElement("button");
         delBtn.className = "del-btn";
         delBtn.textContent = "✕";
-        delBtn.title = "Удалить";
+        delBtn.title = "Delete";
         delBtn.type = "button";
         delBtn.addEventListener("click", () => {
           data.transactions = data.transactions.filter(x => x.id !== t.id);
@@ -596,40 +611,41 @@
           render();
         });
         actions.append(editBtn, delBtn);
-        actionCell.appendChild(actions);
+        right.append(amountEl, actions);
 
-        tr.append(dcell, ccell, acell, actionCell);
+        row.append(main, right);
       }
 
-      tbody.appendChild(tr);
+      list.appendChild(row);
     });
 
     document.getElementById("txTotal").textContent = fmtMoney(info.spent);
     document.getElementById("txTransferTotal").textContent = fmtMoney(info.transferred);
 
-    // history overview
-    const historyBody = document.getElementById("historyBody");
-    historyBody.innerHTML = "";
+    // period overview
+    const historyList = document.getElementById("historyList");
+    historyList.innerHTML = "";
     const allComputed = computeAllPeriods();
     Object.keys(allComputed).sort().reverse().forEach(k => {
       const row = allComputed[k];
-      const tr = document.createElement("tr");
-      tr.className = "clickable";
       const b = periodBounds(row.p);
-      const pcell = document.createElement("td");
-      pcell.textContent = fmtShort(b.start) + " – " + fmtShort(b.end);
-      const scell = document.createElement("td");
-      scell.className = "amount";
-      scell.textContent = fmtMoney(row.spent);
-      const tcell = document.createElement("td");
-      tcell.className = "amount transfer-amount";
-      tcell.textContent = fmtMoney(row.transferred);
-      const rcell = document.createElement("td");
-      rcell.className = "amount " + (row.remaining >= 0 ? "positive-total" : "negative-total");
-      rcell.textContent = fmtMoney(row.remaining);
-      tr.append(pcell, scell, tcell, rcell);
-      tr.addEventListener("click", () => { viewPeriod = row.p; render(); });
-      historyBody.appendChild(tr);
+      const el = document.createElement("div");
+      el.className = "hist-row";
+
+      const periodEl = document.createElement("div");
+      periodEl.className = "hist-period";
+      periodEl.textContent = fmtMonthYear(b.start);
+
+      const figures = document.createElement("div");
+      figures.className = "hist-figures";
+      figures.innerHTML =
+        '<span class="figure spent"><span class="fig-label">Spent </span><span class="fig-value">' + fmtMoney(row.spent) + '</span></span>' +
+        '<span class="figure transfer"><span class="fig-label">Transfers </span><span class="fig-value">' + fmtMoney(row.transferred) + '</span></span>' +
+        '<span class="figure balance ' + (row.remaining >= 0 ? "positive" : "negative") + '"><span class="fig-label">Balance </span><span class="fig-value">' + fmtMoney(row.remaining) + '</span></span>';
+
+      el.append(periodEl, figures);
+      el.addEventListener("click", () => { viewPeriod = row.p; render(); });
+      historyList.appendChild(el);
     });
 
     // settings fields
