@@ -20,6 +20,8 @@
     --text-muted: #6b7280;
     --accent: #2563eb;
     --accent-hover: #1d4ed8;
+    --accent-bg: #eff4ff;
+    --accent-border: #bfdbfe;
     --green: #16a34a;
     --green-bg: #ecfdf3;
     --green-border: #bbf7d0;
@@ -40,6 +42,8 @@
       --text-muted: #9aa1ac;
       --accent: #4f8dff;
       --accent-hover: #6fa2ff;
+      --accent-bg: #16233d;
+      --accent-border: #2c4470;
       --green: #4ade80;
       --green-bg: #0f2b1a;
       --green-border: #1e5631;
@@ -194,19 +198,33 @@
   .tx-amount.pos-refund { color: var(--green); }
   .tx-amount.transfer-amount { color: var(--transfer); }
   .tx-amount.income-amount { color: var(--green); }
-  .tx-actions { display: flex; gap: 2px; justify-content: flex-end; margin-top: 4px; }
+  .tx-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px; }
   .tx-actions button {
-    background: none;
-    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    min-height: 36px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 1rem;
     line-height: 1;
-    padding: 3px 5px;
+    padding: 6px 10px;
   }
-  .tx-actions button:hover { color: var(--accent); }
-  .tx-actions button.del-btn:hover { color: var(--red); }
-  .tx-actions button.save-btn:hover { color: var(--green); }
+  .tx-actions button.edit-btn {
+    color: var(--accent);
+    background: var(--accent-bg);
+    border-color: var(--accent-border);
+  }
+  .tx-actions button.del-btn {
+    color: var(--red);
+    background: var(--red-bg);
+    border-color: var(--red-border);
+  }
+  .tx-actions button.save-btn { color: var(--green); background: var(--green-bg); border-color: var(--green-border); }
 
   .type-badge {
     display: inline-block;
@@ -267,11 +285,22 @@
   footer { text-align: center; color: var(--text-muted); font-size: 0.72rem; margin-top: 20px; padding-bottom: 8px; }
   footer .version { margin-top: 4px; opacity: 0.7; }
 
-  #updateBanner {
+  #toastStack {
     position: fixed;
     left: 12px;
     right: 12px;
     bottom: max(12px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+    max-width: 480px;
+    margin: 0 auto;
+    pointer-events: none;
+  }
+  #toastStack > * { pointer-events: auto; }
+
+  #updateBanner, #undoToast {
     background: var(--accent);
     color: #fff;
     border-radius: 10px;
@@ -282,13 +311,11 @@
     gap: 8px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.3);
     font-size: 0.85rem;
-    z-index: 1000;
-    max-width: 480px;
-    margin: 0 auto;
   }
-  #updateBanner.show { display: flex; }
-  #updateBanner .update-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
-  #updateBanner button.reload-btn {
+  #updateBanner.show, #undoToast.show { display: flex; }
+  #undoToast { background: var(--text); color: var(--card-bg); }
+  #updateBanner .update-actions, #undoToast .undo-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+  #updateBanner button.reload-btn, #undoToast button.undo-btn {
     background: #fff;
     color: var(--accent);
     border: none;
@@ -298,10 +325,11 @@
     font-size: 0.8rem;
     cursor: pointer;
   }
-  #updateBanner button.dismiss-btn {
+  #undoToast button.undo-btn { background: var(--card-bg); color: var(--text); }
+  #updateBanner button.dismiss-btn, #undoToast button.dismiss-btn {
     background: none;
     border: none;
-    color: #fff;
+    color: inherit;
     opacity: 0.85;
     font-size: 1.05rem;
     line-height: 1;
@@ -420,11 +448,20 @@
   </footer>
 </div>
 
-<div id="updateBanner">
-  <span>A new version is available.</span>
-  <div class="update-actions">
-    <button class="reload-btn" id="updateReloadBtn" type="button">Reload</button>
-    <button class="dismiss-btn" id="updateDismissBtn" type="button" title="Dismiss">✕</button>
+<div id="toastStack">
+  <div id="undoToast">
+    <span>Transaction deleted.</span>
+    <div class="undo-actions">
+      <button class="undo-btn" id="undoDeleteBtn" type="button">Undo</button>
+      <button class="dismiss-btn" id="undoDismissBtn" type="button" title="Dismiss">✕</button>
+    </div>
+  </div>
+  <div id="updateBanner">
+    <span>A new version is available.</span>
+    <div class="update-actions">
+      <button class="reload-btn" id="updateReloadBtn" type="button">Reload</button>
+      <button class="dismiss-btn" id="updateDismissBtn" type="button" title="Dismiss">✕</button>
+    </div>
   </div>
 </div>
 
@@ -432,7 +469,7 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "1.8.0";
+  const APP_VERSION = "1.9.0";
   const STORAGE_KEY = "expense-tracker-data-v1";
   const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -552,6 +589,8 @@
   // ---- State ----
   let viewPeriod = currentPeriod();
   let editingId = null;
+  let pendingDelete = null; // { tx, index } — set while the 5s undo window is open
+  let pendingDeleteTimer = null;
 
   // ---- Rendering ----
   function render() {
@@ -671,6 +710,7 @@
         const actions = document.createElement("div");
         actions.className = "tx-actions";
         const editBtn = document.createElement("button");
+        editBtn.className = "edit-btn";
         editBtn.textContent = "✎";
         editBtn.title = "Edit";
         editBtn.type = "button";
@@ -680,11 +720,7 @@
         delBtn.textContent = "✕";
         delBtn.title = "Delete";
         delBtn.type = "button";
-        delBtn.addEventListener("click", () => {
-          data.transactions = data.transactions.filter(x => x.id !== t.id);
-          saveData();
-          render();
-        });
+        delBtn.addEventListener("click", () => { deleteTransaction(t); });
         actions.append(editBtn, delBtn);
         right.append(amountEl, actions);
 
@@ -785,6 +821,42 @@
       saveData();
       render();
     });
+  });
+
+  // ---- Delete with undo ----
+  // Deleting is immediate (and saved), but the transaction is kept around for
+  // 5 seconds so a mis-tap can be reversed with the Undo toast instead of
+  // silently losing data.
+  function deleteTransaction(t) {
+    if (pendingDeleteTimer) { clearTimeout(pendingDeleteTimer); pendingDeleteTimer = null; }
+    const index = data.transactions.indexOf(t);
+    data.transactions = data.transactions.filter(x => x.id !== t.id);
+    saveData();
+    pendingDelete = { tx: t, index: index < 0 ? data.transactions.length : index };
+    document.getElementById("undoToast").classList.add("show");
+    pendingDeleteTimer = setTimeout(() => {
+      pendingDelete = null;
+      pendingDeleteTimer = null;
+      document.getElementById("undoToast").classList.remove("show");
+    }, 5000);
+    render();
+  }
+
+  document.getElementById("undoDeleteBtn").addEventListener("click", () => {
+    if (!pendingDelete) return;
+    if (pendingDeleteTimer) { clearTimeout(pendingDeleteTimer); pendingDeleteTimer = null; }
+    const insertAt = Math.min(pendingDelete.index, data.transactions.length);
+    data.transactions.splice(insertAt, 0, pendingDelete.tx);
+    saveData();
+    viewPeriod = periodStartForDate(pendingDelete.tx.date);
+    pendingDelete = null;
+    document.getElementById("undoToast").classList.remove("show");
+    render();
+  });
+  document.getElementById("undoDismissBtn").addEventListener("click", () => {
+    if (pendingDeleteTimer) { clearTimeout(pendingDeleteTimer); pendingDeleteTimer = null; }
+    pendingDelete = null;
+    document.getElementById("undoToast").classList.remove("show");
   });
 
   document.getElementById("txDate").value = todayStr();
