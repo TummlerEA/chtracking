@@ -136,6 +136,8 @@
   .stat.remaining.negative .value { color: var(--red); }
   .stat.transfer-stat { background: var(--transfer-bg); border-color: var(--transfer-border); }
   .stat.transfer-stat .value { color: var(--transfer); }
+  .stat.income-stat { background: var(--green-bg); border-color: var(--green-border); }
+  .stat.income-stat .value { color: var(--green); }
 
   .card h2 { font-size: 0.95rem; margin: 0 0 10px; }
 
@@ -191,6 +193,7 @@
   .tx-amount { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 0.92rem; }
   .tx-amount.pos-refund { color: var(--green); }
   .tx-amount.transfer-amount { color: var(--transfer); }
+  .tx-amount.income-amount { color: var(--green); }
   .tx-actions { display: flex; gap: 2px; justify-content: flex-end; margin-top: 4px; }
   .tx-actions button {
     background: none;
@@ -215,6 +218,7 @@
   }
   .type-badge.expense { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
   .type-badge.transfer { background: var(--transfer-bg); color: var(--transfer); border: 1px solid var(--transfer-border); }
+  .type-badge.income { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
 
   .tx-row.editing { flex-direction: column; align-items: stretch; }
   .edit-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
@@ -226,6 +230,7 @@
   .totals { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 2px solid var(--border); font-size: 0.85rem; }
   .totals .totals-row { display: flex; justify-content: space-between; }
   .totals .totals-row.transfer-row { color: var(--transfer); }
+  .totals .totals-row.income-row { color: var(--green); }
   .totals .totals-row .label { color: inherit; font-weight: 600; }
   .totals .totals-row .value { font-weight: 700; font-variant-numeric: tabular-nums; }
 
@@ -255,6 +260,7 @@
   .hist-figures .figure .fig-label { color: var(--text-muted); }
   .hist-figures .figure.spent .fig-value { color: var(--text); font-weight: 600; }
   .hist-figures .figure.transfer .fig-value { color: var(--transfer); font-weight: 600; }
+  .hist-figures .figure.income .fig-value { color: var(--green); font-weight: 600; }
   .hist-figures .figure.balance.positive .fig-value { color: var(--green); font-weight: 700; }
   .hist-figures .figure.balance.negative .fig-value { color: var(--red); font-weight: 700; }
 
@@ -326,6 +332,10 @@
         <div class="label">Carried over</div>
         <div class="value" id="statCarryover">—</div>
       </div>
+      <div class="stat income-stat">
+        <div class="label">Income received (not in budget yet)</div>
+        <div class="value" id="statIncome">—</div>
+      </div>
       <div class="stat">
         <div class="label">Spent</div>
         <div class="value" id="statSpent">—</div>
@@ -352,6 +362,7 @@
         <label for="txType">Type</label>
         <select id="txType">
           <option value="expense">Expense</option>
+          <option value="income">Income (money received)</option>
           <option value="transfer">Transfer (cash → account)</option>
         </select>
       </div>
@@ -373,6 +384,7 @@
     <div class="empty" id="txEmpty" style="display:none">No transactions in this period yet</div>
     <div class="totals" id="txTotals" style="display:none">
       <div class="totals-row"><span class="label">Total spent</span><span class="value" id="txTotal">—</span></div>
+      <div class="totals-row income-row"><span class="label">Total income</span><span class="value" id="txIncomeTotal">—</span></div>
       <div class="totals-row transfer-row"><span class="label">Total transfers</span><span class="value" id="txTransferTotal">—</span></div>
     </div>
   </div>
@@ -420,7 +432,7 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "1.5.0";
+  const APP_VERSION = "1.6.0";
   const STORAGE_KEY = "expense-tracker-data-v1";
   const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -433,8 +445,8 @@
     if (typeof raw.settings.payday !== "number") raw.settings.payday = 22;
     if (typeof raw.settings.startingCarryover !== "number") raw.settings.startingCarryover = 0;
     if (!Array.isArray(raw.transactions)) raw.transactions = [];
-    // migrate old records without a type -> treat as expense
-    raw.transactions.forEach(t => { if (t.type !== "expense" && t.type !== "transfer") t.type = "expense"; });
+    // migrate old records without a (known) type -> treat as expense
+    raw.transactions.forEach(t => { if (!["expense", "transfer", "income"].includes(t.type)) t.type = "expense"; });
     return raw;
   }
 
@@ -506,10 +518,14 @@
     return periodStartForDate(dateStr);
   }
 
-  // Compute expense total, transfer total & carryover for every period up to
+  // Compute expense/income/transfer totals & carryover for every period up to
   // and including target, in chronological order. Only "expense" transactions
   // count against the budget; "transfer" moves money between cash/account and
-  // does not affect the remaining balance.
+  // does not affect the remaining balance. "income" transactions record actual
+  // money received (which can vary in amount and date) — they're tracked and
+  // shown, but the budget itself still assumes the fixed monthly amount from
+  // Settings rather than the logged income. That's deliberate for now: revisit
+  // once there's more real usage data on how variable income/payday actually is.
   function computePeriodsFor(keys) {
     let carry = data.settings.startingCarryover;
     const results = {};
@@ -518,10 +534,11 @@
       const txs = data.transactions.filter(t => periodKey(periodStartForDate(t.date)) === key);
       const spent = txs.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
       const transferred = txs.filter(t => t.type === "transfer").reduce((sum, t) => sum + t.amount, 0);
+      const income = txs.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
       const budget = data.settings.baseAmount;
       const available = budget + carry;
       const remaining = available - spent;
-      results[key] = { p, spent, transferred, carryIn: carry, budget, available, remaining };
+      results[key] = { p, spent, transferred, income, carryIn: carry, budget, available, remaining };
       carry = remaining;
     });
     return results;
@@ -552,6 +569,7 @@
     document.getElementById("statBudget").textContent = fmtMoney(info.budget);
     document.getElementById("statCarryover").textContent = fmtMoney(info.carryIn);
     document.getElementById("statSpent").textContent = fmtMoney(info.spent);
+    document.getElementById("statIncome").textContent = fmtMoney(info.income);
     document.getElementById("statTransfer").textContent = fmtMoney(info.transferred);
     document.getElementById("statRemaining").textContent = fmtMoney(info.remaining);
     const box = document.getElementById("statRemainingBox");
@@ -583,7 +601,7 @@
         dateInput.value = t.date;
 
         const typeSelect = document.createElement("select");
-        [["expense", "Expense"], ["transfer", "Transfer"]].forEach(([val, label]) => {
+        [["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer"]].forEach(([val, label]) => {
           const opt = document.createElement("option");
           opt.value = val; opt.textContent = label;
           if (t.type === val) opt.selected = true;
@@ -613,7 +631,7 @@
           const newAmount = parseFloat(amountInput.value);
           if (!dateInput.value || isNaN(newAmount) || !commentInput.value.trim()) return;
           t.date = dateInput.value;
-          t.type = typeSelect.value === "transfer" ? "transfer" : "expense";
+          t.type = ["transfer", "income"].includes(typeSelect.value) ? typeSelect.value : "expense";
           t.amount = newAmount;
           t.comment = commentInput.value.trim();
           editingId = null;
@@ -647,7 +665,7 @@
         const right = document.createElement("div");
         right.className = "tx-right";
         const amountEl = document.createElement("div");
-        amountEl.className = "tx-amount" + (t.type === "transfer" ? " transfer-amount" : (t.amount < 0 ? " pos-refund" : ""));
+        amountEl.className = "tx-amount" + (t.type === "transfer" ? " transfer-amount" : t.type === "income" ? " income-amount" : (t.amount < 0 ? " pos-refund" : ""));
         amountEl.textContent = fmtMoney(t.amount);
         const actions = document.createElement("div");
         actions.className = "tx-actions";
@@ -676,6 +694,7 @@
     });
 
     document.getElementById("txTotal").textContent = fmtMoney(info.spent);
+    document.getElementById("txIncomeTotal").textContent = fmtMoney(info.income);
     document.getElementById("txTransferTotal").textContent = fmtMoney(info.transferred);
 
     // period overview
@@ -696,6 +715,7 @@
       figures.className = "hist-figures";
       figures.innerHTML =
         '<span class="figure spent"><span class="fig-label">Spent </span><span class="fig-value">' + fmtMoney(row.spent) + '</span></span>' +
+        '<span class="figure income"><span class="fig-label">Income </span><span class="fig-value">' + fmtMoney(row.income) + '</span></span>' +
         '<span class="figure transfer"><span class="fig-label">Transfers </span><span class="fig-value">' + fmtMoney(row.transferred) + '</span></span>' +
         '<span class="figure balance ' + (row.remaining >= 0 ? "positive" : "negative") + '"><span class="fig-label">Balance </span><span class="fig-value">' + fmtMoney(row.remaining) + '</span></span>';
 
@@ -735,7 +755,7 @@
     data.transactions.push({
       id: Date.now(),
       date: dateEl.value,
-      type: typeEl.value === "transfer" ? "transfer" : "expense",
+      type: ["transfer", "income"].includes(typeEl.value) ? typeEl.value : "expense",
       amount: amount,
       comment: commentEl.value.trim()
     });
