@@ -325,7 +325,7 @@
 
     <div class="summary-grid">
       <div class="stat">
-        <div class="label">Period budget</div>
+        <div class="label">Budget target (reference only)</div>
         <div class="value" id="statBudget">—</div>
       </div>
       <div class="stat">
@@ -333,7 +333,7 @@
         <div class="value" id="statCarryover">—</div>
       </div>
       <div class="stat income-stat">
-        <div class="label">Income received (not in budget yet)</div>
+        <div class="label">Income received</div>
         <div class="value" id="statIncome">—</div>
       </div>
       <div class="stat">
@@ -399,7 +399,7 @@
       <summary>Settings</summary>
       <div class="settings-grid">
         <div>
-          <label for="setBudget">Monthly budget, £</label>
+          <label for="setBudget">Budget target, £ (reference only — not auto-added)</label>
           <input type="number" id="setBudget" step="1">
         </div>
         <div>
@@ -432,7 +432,7 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "1.6.0";
+  const APP_VERSION = "1.7.0";
   const STORAGE_KEY = "expense-tracker-data-v1";
   const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -519,13 +519,11 @@
   }
 
   // Compute expense/income/transfer totals & carryover for every period up to
-  // and including target, in chronological order. Only "expense" transactions
-  // count against the budget; "transfer" moves money between cash/account and
-  // does not affect the remaining balance. "income" transactions record actual
-  // money received (which can vary in amount and date) — they're tracked and
-  // shown, but the budget itself still assumes the fixed monthly amount from
-  // Settings rather than the logged income. That's deliberate for now: revisit
-  // once there's more real usage data on how variable income/payday actually is.
+  // and including target, in chronological order. Only real "income"
+  // transactions add money into a period — the monthly amount in Settings is
+  // NOT auto-added every period, it's shown purely as a reference target so
+  // you can compare actual income against it. "expense" reduces the balance;
+  // "transfer" moves money between cash/account and does not affect it.
   function computePeriodsFor(keys) {
     let carry = data.settings.startingCarryover;
     const results = {};
@@ -535,10 +533,10 @@
       const spent = txs.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
       const transferred = txs.filter(t => t.type === "transfer").reduce((sum, t) => sum + t.amount, 0);
       const income = txs.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
-      const budget = data.settings.baseAmount;
-      const available = budget + carry;
+      const budgetTarget = data.settings.baseAmount; // reference only, not added automatically
+      const available = carry + income;
       const remaining = available - spent;
-      results[key] = { p, spent, transferred, income, carryIn: carry, budget, available, remaining };
+      results[key] = { p, spent, transferred, income, carryIn: carry, budgetTarget, available, remaining };
       carry = remaining;
     });
     return results;
@@ -566,7 +564,7 @@
       fmtShort(bounds.start) + " – " + fmtShort(bounds.end) +
       "<small>period " + key + "</small>";
 
-    document.getElementById("statBudget").textContent = fmtMoney(info.budget);
+    document.getElementById("statBudget").textContent = fmtMoney(info.budgetTarget);
     document.getElementById("statCarryover").textContent = fmtMoney(info.carryIn);
     document.getElementById("statSpent").textContent = fmtMoney(info.spent);
     document.getElementById("statIncome").textContent = fmtMoney(info.income);
