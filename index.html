@@ -341,7 +341,7 @@
         <div class="value" id="statSpent">—</div>
       </div>
       <div class="stat transfer-stat">
-        <div class="label">Transfers (not spending)</div>
+        <div class="label">Transfers (reduces balance)</div>
         <div class="value" id="statTransfer">—</div>
       </div>
       <div class="stat remaining" id="statRemainingBox" style="grid-column: 1 / -1;">
@@ -432,7 +432,7 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "1.7.0";
+  const APP_VERSION = "1.8.0";
   const STORAGE_KEY = "expense-tracker-data-v1";
   const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -522,8 +522,11 @@
   // and including target, in chronological order. Only real "income"
   // transactions add money into a period — the monthly amount in Settings is
   // NOT auto-added every period, it's shown purely as a reference target so
-  // you can compare actual income against it. "expense" reduces the balance;
-  // "transfer" moves money between cash/account and does not affect it.
+  // you can compare actual income against it. Both "expense" and "transfer"
+  // reduce the balance (the money has left the tracked pool either way);
+  // "transfer" is still broken out separately from "spent" purely for
+  // reporting, so you can tell how much went to actual purchases vs. was
+  // moved to an account.
   function computePeriodsFor(keys) {
     let carry = data.settings.startingCarryover;
     const results = {};
@@ -535,7 +538,7 @@
       const income = txs.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
       const budgetTarget = data.settings.baseAmount; // reference only, not added automatically
       const available = carry + income;
-      const remaining = available - spent;
+      const remaining = available - spent - transferred;
       results[key] = { p, spent, transferred, income, carryIn: carry, budgetTarget, available, remaining };
       carry = remaining;
     });
