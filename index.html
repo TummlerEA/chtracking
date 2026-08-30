@@ -177,6 +177,18 @@
     cursor: pointer;
   }
   button.primary:hover { background: var(--accent-hover); }
+  button.secondary {
+    width: 100%;
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.secondary:hover { background: var(--accent-border); }
 
   /* ---- transaction list (flex rows, never needs horizontal scroll) ---- */
   .tx-list { display: flex; flex-direction: column; }
@@ -262,6 +274,7 @@
     gap: 10px;
     margin-top: 12px;
   }
+  .hint { font-size: 0.72rem; color: var(--text-muted); margin: 10px 0 0; line-height: 1.4; }
 
   /* ---- period overview (flex rows) ---- */
   .history-list { display: flex; flex-direction: column; }
@@ -442,6 +455,22 @@
     </details>
   </div>
 
+  <div class="card">
+    <details class="settings">
+      <summary>Backup &amp; restore</summary>
+      <div class="settings-grid">
+        <div>
+          <button type="button" class="secondary" id="exportBtn">⬇ Export data as JSON</button>
+        </div>
+        <div>
+          <label for="importFile">Restore from a JSON backup</label>
+          <input type="file" id="importFile" accept="application/json,.json">
+        </div>
+      </div>
+      <p class="hint">Export regularly and keep the file somewhere safe (e.g. cloud drive or email to yourself) — that's your only archive/restore path since everything otherwise lives only in this browser. Importing replaces all current data on this device, so export first if you want to keep what's here.</p>
+    </details>
+  </div>
+
   <footer>
     <div>Data is stored locally in this browser (localStorage).</div>
     <div class="version" id="appVersion"></div>
@@ -469,22 +498,37 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "1.9.0";
+  const APP_VERSION = "1.10.0";
   const STORAGE_KEY = "expense-tracker-data-v1";
   const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-  function loadData() {
-    let raw;
-    try { raw = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (e) { raw = null; }
+  // Fill in defaults / migrate old records on any raw data object, whether it
+  // came from localStorage or from an imported backup file — both go through
+  // this single path so they end up in the same validated shape.
+  function normalizeData(raw) {
     if (!raw || typeof raw !== "object") raw = {};
     if (!raw.settings) raw.settings = {};
     if (typeof raw.settings.baseAmount !== "number") raw.settings.baseAmount = 2600;
     if (typeof raw.settings.payday !== "number") raw.settings.payday = 22;
     if (typeof raw.settings.startingCarryover !== "number") raw.settings.startingCarryover = 0;
     if (!Array.isArray(raw.transactions)) raw.transactions = [];
-    // migrate old records without a (known) type -> treat as expense
-    raw.transactions.forEach(t => { if (!["expense", "transfer", "income"].includes(t.type)) t.type = "expense"; });
+    // migrate/validate transaction records: keep only well-formed ones
+    raw.transactions = raw.transactions
+      .filter(t => t && typeof t === "object" && typeof t.date === "string" && typeof t.amount === "number" && !isNaN(t.amount))
+      .map(t => ({
+        id: typeof t.id === "number" ? t.id : Date.now() + Math.random(),
+        date: t.date,
+        type: ["expense", "transfer", "income"].includes(t.type) ? t.type : "expense",
+        amount: t.amount,
+        comment: typeof t.comment === "string" ? t.comment : ""
+      }));
     return raw;
+  }
+
+  function loadData() {
+    let raw;
+    try { raw = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (e) { raw = null; }
+    return normalizeData(raw);
   }
 
   function saveData() {
@@ -857,6 +901,74 @@
     if (pendingDeleteTimer) { clearTimeout(pendingDeleteTimer); pendingDeleteTimer = null; }
     pendingDelete = null;
     document.getElementById("undoToast").classList.remove("show");
+  });
+
+  // ---- Backup & restore ----
+  // Everything lives only in this browser's localStorage, so export is the
+  // only way to get an archive off the device, and import is the only way
+  // to restore one (here or on another device/browser).
+  function exportData() {
+    const payload = {
+      app: "chtracking",
+      appVersion: APP_VERSION,
+      exportedAt: new Date().toISOString(),
+      data: data
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "expense-tracker-backup-" + todayStr() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById("exportBtn").addEventListener("click", exportData);
+
+  document.getElementById("importFile").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(String(reader.result));
+      } catch (err) {
+        alert("Couldn't read that file — make sure it's a JSON backup exported from this app.");
+        e.target.value = "";
+        return;
+      }
+      // Accept both the wrapped export format ({ data: {...} }) and a raw
+      // { settings, transactions } object, in case someone hand-edits one.
+      const incoming = parsed && typeof parsed === "object" && parsed.data ? parsed.data : parsed;
+      if (!incoming || typeof incoming !== "object" || !Array.isArray(incoming.transactions)) {
+        alert("This doesn't look like a valid expense tracker backup.");
+        e.target.value = "";
+        return;
+      }
+      const count = incoming.transactions.length;
+      const ok = confirm(
+        "Replace all current data on this device with this backup (" + count + " transaction" + (count === 1 ? "" : "s") + ")?\n\nThis cannot be undone — export your current data first if you want to keep it."
+      );
+      e.target.value = "";
+      if (!ok) return;
+      data = normalizeData(incoming);
+      saveData();
+      editingId = null;
+      pendingDelete = null;
+      if (pendingDeleteTimer) { clearTimeout(pendingDeleteTimer); pendingDeleteTimer = null; }
+      document.getElementById("undoToast").classList.remove("show");
+      viewPeriod = currentPeriod();
+      render();
+      alert("Backup restored.");
+    };
+    reader.onerror = () => {
+      alert("Couldn't read that file.");
+      e.target.value = "";
+    };
+    reader.readAsText(file);
   });
 
   document.getElementById("txDate").value = todayStr();
