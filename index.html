@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Expenses">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f5f7">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1115">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%230f1115%22/><text x=%2250%22 y=%2268%22 font-size=%2260%22 text-anchor=%22middle%22>💷</text></svg>">
 <title>Expense Tracker</title>
 <style>
   :root {
@@ -296,7 +297,7 @@
   .hist-figures .figure.balance.negative .fig-value { color: var(--red); font-weight: 700; }
 
   footer { text-align: center; color: var(--text-muted); font-size: 0.72rem; margin-top: 20px; padding-bottom: 8px; }
-  footer .version { margin-top: 4px; opacity: 0.7; }
+  footer .version { margin-top: 4px; opacity: 0.7; cursor: pointer; text-decoration: underline dotted; }
 
   #toastStack {
     position: fixed;
@@ -472,8 +473,8 @@
   </div>
 
   <footer>
-    <div>Data is stored locally in this browser (localStorage).</div>
-    <div class="version" id="appVersion"></div>
+    <div>Data is stored locally in this browser (localStorage). Works offline once opened.</div>
+    <div class="version" id="appVersion" title="Tap to force-refresh"></div>
   </footer>
 </div>
 
@@ -498,7 +499,11 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "1.10.0";
+  const APP_VERSION = "1.11.0";
+  // A separate integer counter, bumped alongside the app and version.json
+  // on every release, used purely for the offline cache name and the "is
+  // there something newer" check — see sw.js and version.json.
+  const APP_BUILD = 1;
   const STORAGE_KEY = "expense-tracker-data-v1";
   const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -976,32 +981,81 @@
 
   render();
 
+  // ---- The offline copy ----
+  // Keeps the app itself reachable without a connection, via a service
+  // worker that caches index.html and serves it cache-first (see sw.js).
+  // Nothing about the transaction log depends on this — it's always written
+  // straight to localStorage — this is only about being able to *open* the
+  // app at all when there's no signal.
+  function keepAnOfflineCopy() {
+    if (location.protocol === "file:") return;
+    if (!navigator.serviceWorker || !navigator.serviceWorker.register) return;
+    const start = () => {
+      // The build number goes in the URL so that a release replaces the
+      // worker rather than leaving the old one in charge, and updateViaCache
+      // keeps the browser from answering out of its own HTTP cache — a fix
+      // to the caching must never be the one thing the caching holds back.
+      navigator.serviceWorker.register("sw.js?v=" + APP_BUILD, { updateViaCache: "none" })
+        .catch(() => { /* an app that won't cache still runs */ });
+    };
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", start);
+  }
+  keepAnOfflineCopy();
+
   // ---- Update detection ----
-  // A phone's "Add to Home Screen" shortcut can keep showing an old cached
-  // copy of this page. Since there is no backend to push updates, the app
-  // instead re-fetches its own HTML (bypassing the HTTP cache) whenever it
-  // becomes visible again, compares the embedded version string, and offers
-  // a one-tap reload if a newer version is live on the server.
-  let updateCheckInFlight = false;
+  // version.json is a couple of dozen bytes that says what's deployed; the
+  // running copy knows what it is. Checking that instead of re-fetching the
+  // whole page also sidesteps the service worker above: index.html itself is
+  // now served cache-first, so fetching it to look for a newer version would
+  // just hand back the same cached copy. version.json is explicitly excluded
+  // from the cache in sw.js so this check always reaches the network.
+  let lastVersionCheck = 0;
+  const VERSION_CHECK_GAP = 15 * 60 * 1000; // no need to ask more often than this
   function checkForUpdate() {
-    if (updateCheckInFlight) return;
-    updateCheckInFlight = true;
-    fetch(window.location.pathname + "?_=" + Date.now(), { cache: "no-store" })
-      .then(r => (r.ok ? r.text() : null))
-      .then(html => {
-        if (!html) return;
-        const m = html.match(/APP_VERSION\s*=\s*"([^"]+)"/);
-        if (m && m[1] && m[1] !== APP_VERSION) {
-          document.getElementById("updateBanner").classList.add("show");
-        }
+    if (location.protocol === "file:") return;
+    const now = Date.now();
+    if (lastVersionCheck && now - lastVersionCheck < VERSION_CHECK_GAP) return;
+    lastVersionCheck = now;
+    fetch("version.json?t=" + now, { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(json => {
+        if (!json) return;
+        const remote = parseInt(json.version, 10);
+        if (!isFinite(remote) || remote <= APP_BUILD) return; // only ever offer to go forwards
+        document.getElementById("updateBanner").classList.add("show");
       })
-      .catch(() => {})
-      .finally(() => { updateCheckInFlight = false; });
+      .catch(() => { /* offline is the ordinary case here, not a fault */ });
   }
 
-  document.getElementById("updateReloadBtn").addEventListener("click", () => {
-    window.location.href = window.location.pathname + "?v=" + Date.now();
-  });
+  // The real escape hatch from anything the offline copy has got wrong.
+  // Clears the cache and unregisters the service worker, then reloads under
+  // a URL the cache has never seen (?r=...) so the worker's own "forced"
+  // branch answers it from the network. Offline, none of the clearing can
+  // happen (or would help) — just hand back the one copy that exists.
+  function reloadFresh() {
+    const base = location.href.split("#")[0].split("?")[0];
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      location.replace(base + "?r=" + Date.now());
+    };
+    if (navigator.onLine === false) return go();
+    const jobs = [];
+    if (window.caches && caches.keys) {
+      jobs.push(caches.keys().then(names => Promise.all(names.map(name => caches.delete(name)))));
+    }
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      jobs.push(navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(reg => reg.unregister()))));
+    }
+    if (!jobs.length) return go();
+    Promise.all(jobs).then(go, go);
+    setTimeout(go, 400); // a stuck cache delete shouldn't leave the button looking dead
+  }
+
+  document.getElementById("appVersion").addEventListener("click", reloadFresh);
+  document.getElementById("updateReloadBtn").addEventListener("click", reloadFresh);
   document.getElementById("updateDismissBtn").addEventListener("click", () => {
     document.getElementById("updateBanner").classList.remove("show");
   });
